@@ -157,10 +157,8 @@ export default function MapPortrait({ slug, onArrive }: Props) {
     const nw = imgFailed ? 0 : img?.naturalWidth || 0
     const nh = imgFailed ? 0 : img?.naturalHeight || 0
 
-    // 可用区域：避开顶部 HUD 与底部提示条
-    const HUD = 64
-    const BOTTOM = 44
-    const area = { x: 0, y: HUD, w: r.width, h: Math.max(200, r.height - HUD - BOTTOM) }
+    // 可用区域：全屏（无顶栏、无底栏），地图从屏幕边缘铺满
+    const area = { x: 0, y: 0, w: r.width, h: Math.max(200, r.height) }
 
     let dx: number
     let dy: number
@@ -179,7 +177,7 @@ export default function MapPortrait({ slug, onArrive }: Props) {
       dx = area.x + (area.w - dw) / 2
       dy = area.y
     } else {
-      // 更窄 → cover 铺满宽度，上下留出 HUD/提示的空间
+      // 更窄 → cover 铺满整屏，左右裁掉少量海面
       const k = Math.max(area.w / nw, area.h / nh)
       dw = nw * k
       dh = nh * k
@@ -511,7 +509,7 @@ export default function MapPortrait({ slug, onArrive }: Props) {
         <span className="joy-knob" ref={knobRef} />
       </div>
 
-      <div className="stage-hint map-hint">
+      <div className="map-hint">
         <span className="hint-name">点坐标 / 点路面 / WASD 走动 → 走到坐标自动拉开抽屉</span>
       </div>
     </div>

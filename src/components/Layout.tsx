@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import MapPortrait from './MapPortrait'
 import SectionDrawer from './SectionDrawer'
 import { BRAND_BADGE, findSection, sections } from '../data/sections'
@@ -33,32 +33,7 @@ export default function Layout() {
 
   return (
     <div className="app-shell">
-      <header className="hud-top">
-        <Link to="/" className="brand" aria-label="吃货计划首页">
-          <img src={BRAND_BADGE} alt="" className="brand-badge" width={40} height={40} />
-          <span className="brand-text">
-            <strong>吃货计划</strong>
-            <em>EAT PLAN</em>
-          </span>
-        </Link>
-
-        <nav className="hud-nav" aria-label="坐标直达">
-          {sections.map((s) => (
-            <button
-              key={s.slug}
-              className={slug === s.slug ? 'chip is-active' : 'chip'}
-              onClick={() => navigate(`/${s.slug}`)}
-            >
-              {s.navLabel}
-            </button>
-          ))}
-        </nav>
-
-        <button className="hud-info" onClick={() => setInfoOpen(true)} aria-label="关于与链接">
-          i
-        </button>
-      </header>
-
+      {/* 全屏地图：没有顶栏，画面从屏幕边缘铺满 */}
       <MapPortrait slug={slug} onArrive={(s) => navigate(`/${s}`)} />
 
       <SectionDrawer
@@ -67,6 +42,11 @@ export default function Layout() {
         onClose={() => navigate('/')}
         onGoto={(s) => navigate(`/${s}`)}
       />
+
+      {/* 浮动「关于」按钮：不占版面，打开后含品牌与页脚链接 */}
+      <button className="float-info" onClick={() => setInfoOpen(true)} aria-label="关于与链接">
+        i
+      </button>
 
       {infoOpen && (
         <div className="info-modal" role="dialog" aria-modal="true" aria-label="关于吃货计划">

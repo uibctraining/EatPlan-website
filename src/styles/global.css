@@ -108,37 +108,13 @@ button {
   margin: 0 0 10px;
 }
 
-/* ---------- 应用外壳与 HUD ---------- */
-
+/* ---------- 应用外壳（全屏无顶栏） ---------- */
 .app-shell {
   position: fixed;
   inset: 0;
   height: 100dvh;
   overflow: hidden;
 }
-
-.hud-top {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 40;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 8px clamp(10px, 3vw, 22px);
-  background: rgba(255, 246, 231, 0.94);
-  border-bottom: var(--border);
-  box-shadow: 0 4px 0 rgba(42, 38, 34, 0.18);
-}
-
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-shrink: 0;
-}
-
 .brand-badge {
   width: 40px;
   height: 40px;
@@ -146,96 +122,25 @@ button {
   border: var(--border-thin);
   background: var(--paper-deep);
 }
-
-.brand-text {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.2;
-}
-
-.brand-text strong {
-  font-size: 17px;
-  letter-spacing: 2px;
-}
-
-.brand-text em {
-  font-family: var(--font-pixel);
-  font-style: normal;
-  font-size: 7px;
-  color: var(--green);
-  letter-spacing: 1px;
-}
-
-.hud-nav {
-  display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  flex: 1;
-  padding: 2px 0;
-  scrollbar-width: none;
-}
-
-.hud-nav::-webkit-scrollbar {
-  display: none;
-}
-
-.chip {
-  flex-shrink: 0;
-  font-size: 13px;
-  font-weight: 700;
-  padding: 6px 11px;
-  background: var(--paper);
-  border: var(--border-thin);
-  box-shadow: 3px 3px 0 rgba(42, 38, 34, 0.35);
-  transition: transform 0.12s ease, background 0.12s ease;
-  white-space: nowrap;
-}
-
-.chip:hover {
-  transform: translate(-1px, -1px);
-}
-
-.chip.is-active {
-  background: var(--gold);
-  box-shadow: 3px 3px 0 var(--ink);
-}
-
-.hud-info {
-  flex-shrink: 0;
-  width: 36px;
-  height: 36px;
-  font-family: var(--font-pixel);
-  font-size: 14px;
-  color: var(--paper);
-  background: var(--green);
-  border: var(--border-thin);
-  box-shadow: 3px 3px 0 var(--ink);
-}
-
-.hud-info:active {
-  transform: translate(2px, 2px);
-  box-shadow: 1px 1px 0 var(--ink);
-}
-
-/* ---------- 通用舞台提示（地图下方的操作说明） ---------- */
-
-
-.stage-hint {
+/* 浮动「关于」按钮：角落小圆钮，不占版面 */
+.float-info {
   position: absolute;
-  left: 50%;
-  bottom: 22px;
-  transform: translateX(-50%);
-  z-index: 20;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  padding: 8px 14px;
-  background: rgba(255, 246, 231, 0.93);
+  top: calc(10px + env(safe-area-inset-top));
+  right: 12px;
+  z-index: 45;
+  width: 40px;
+  height: 40px;
+  font-family: var(--font-pixel);
+  font-size: 15px;
+  color: var(--paper);
+  background: rgba(42, 38, 34, 0.7);
   border: var(--border-thin);
-  box-shadow: var(--shadow-sm);
-  text-align: center;
-  max-width: min(76vw, 420px);
+  box-shadow: 3px 3px 0 rgba(42, 38, 34, 0.45);
+  backdrop-filter: blur(2px);
+}
+.float-info:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 rgba(42, 38, 34, 0.45);
 }
 
 .hint-coord {
@@ -387,14 +292,36 @@ button {
   filter: drop-shadow(2px 3px 0 rgba(42, 38, 34, 0.3));
 }
 
+/* 底部浮动提示：半透明，7 秒后自动淡出 */
 .map-hint {
   position: absolute;
-  left: 50%;
-  bottom: 8px;
-  transform: translateX(-50%);
+  right: 14px;
+  bottom: calc(16px + env(safe-area-inset-bottom));
   z-index: 30;
-  max-width: min(94vw, 560px);
-  padding: 6px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 7px 13px;
+  max-width: min(64vw, 420px);
+  background: rgba(42, 38, 34, 0.74);
+  border: 1px solid rgba(255, 246, 231, 0.35);
+  box-shadow: 0 4px 0 rgba(42, 38, 34, 0.35);
+  text-align: center;
+  backdrop-filter: blur(2px);
+  animation: hint-away 0.8s ease 7s forwards;
+}
+.map-hint .hint-name {
+  color: #fff6e7;
+  font-size: 12.5px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+@keyframes hint-away {
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
 }
 
 /* 虚拟摇杆：自由走动小人 */
@@ -768,29 +695,10 @@ button {
 /* ---------- 响应式 ---------- */
 
 @media (max-width: 760px) {
-  .hud-top {
-    flex-wrap: wrap;
-    gap: 8px;
-    padding-bottom: 6px;
-  }
 
-  .hud-nav {
-    order: 3;
-    width: 100%;
-  }
 
-  .hud-info {
-    margin-left: auto;
-  }
 
-  .brand-text strong {
-    font-size: 15px;
-  }
 
-  .stage-hint {
-    bottom: 158px;
-    max-width: 84vw;
-  }
 
   .footer-cols {
     grid-template-columns: repeat(2, 1fr);
@@ -798,10 +706,6 @@ button {
 }
 
 @media (max-width: 380px) {
-  .stage-hint {
-    max-width: 78vw;
-    padding: 6px 10px;
-  }
 
   .hint-name {
     font-size: 12px;
