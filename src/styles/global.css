@@ -257,34 +257,48 @@ button {
 .map-screen {
   position: absolute;
   inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
-  padding: 74px 12px 14px;
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+  background: var(--green-deep);
 }
 
-.map-frame {
-  position: relative;
-  width: min(100%, 460px, calc((100dvh - 168px) * 0.5625));
-  aspect-ratio: 9 / 16;
-  border: var(--border);
-  box-shadow: 8px 8px 0 var(--green-deep);
-  background: var(--sky);
+/* 模糊背景：宽屏时把竖版地图两侧铺满全屏 */
+.map-bg {
+  position: absolute;
+  inset: -40px;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  filter: blur(22px) brightness(0.62) saturate(1.1);
+  z-index: 0;
 }
 
 .map-img {
+  position: absolute;
+  left: 0;
+  top: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
+  z-index: 1;
 }
 
 .map-img-fallback {
   background:
     radial-gradient(circle at 30% 20%, rgba(255, 246, 231, 0.5), transparent 40%),
     linear-gradient(180deg, #8fd1d8 0%, #5aa054 70%, #3f7f3c 100%);
+}
+
+/* 图片实际绘制矩形：pin 与小人都以它为坐标系（JS 按 cover/contain 计算） */
+.map-content {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
 }
 
 .map-pin {
@@ -374,9 +388,43 @@ button {
 }
 
 .map-hint {
-  position: static;
-  transform: none;
-  max-width: min(92vw, 460px);
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  transform: translateX(-50%);
+  z-index: 30;
+  max-width: min(94vw, 560px);
+  padding: 6px 12px;
+}
+
+/* 虚拟摇杆：自由走动小人 */
+.joystick {
+  position: absolute;
+  left: 16px;
+  bottom: 62px;
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  border: var(--border);
+  background: rgba(255, 246, 231, 0.72);
+  box-shadow: var(--shadow-sm);
+  z-index: 30;
+  touch-action: none;
+  display: grid;
+  place-items: center;
+}
+
+.joystick:active {
+  background: rgba(255, 246, 231, 0.92);
+}
+
+.joy-knob {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--gold);
+  border: var(--border-thin);
+  box-shadow: 3px 3px 0 rgba(42, 38, 34, 0.45);
 }
 
 @keyframes ping {
@@ -414,23 +462,23 @@ button {
 
 .drawer {
   position: fixed;
-  left: 50%;
+  top: 0;
+  right: 0;
   bottom: 0;
   z-index: 60;
-  width: min(640px, 100%);
-  max-height: min(76vh, 720px);
+  width: min(560px, 94vw);
   display: flex;
   flex-direction: column;
   background: var(--paper);
   border: var(--border);
-  border-bottom: none;
-  box-shadow: 0 -8px 0 rgba(20, 61, 46, 0.35);
-  transform: translate(-50%, 105%);
+  border-right: none;
+  box-shadow: -10px 0 0 rgba(20, 61, 46, 0.35);
+  transform: translateX(106%);
   transition: transform 0.34s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .drawer.is-open {
-  transform: translate(-50%, 0);
+  transform: translateX(0);
 }
 
 .drawer-handle {
