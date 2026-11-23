@@ -4,12 +4,12 @@ import { PATH, PINS, STOPS } from '../map/mapLayout'
 import { FRAME_H, FRAME_W, FRAMES, WALKER_IMAGE } from '../map/sprite'
 
 const MAP_IMAGE = '/map-town.webp'
-
 const SPEED = 170 // 小人每秒走多少像素
-// 半径按地图显示宽度取比例：路宽变化时走廊与触发范围跟着自适应
-const CORRIDOR_RATIO = 0.05 // 离石板路中心线多宽以内才算走在路上
 const TRIGGER_RATIO = 0.05 // 距坐标多少比例内触发抽屉
 const RELEASE_RATIO = 0.085 // 走出多少比例后允许再次触发
+const JOY_IN = 56 // 摇杆输入半径（拖多少算满偏）
+const JOY_VIS = 34 // 摇杆方向盘钮的最大位移
+const TAP_SLOP = 10 // 小于这个位移算点按，否则算拖动摇杆
 
 type Props = {
   /** 当前路由坐标（chips 打开时小人也会走过去） */
@@ -19,7 +19,8 @@ type Props = {
 }
 
 /**
- * 全屏竖屏平面图：点坐标 / 摇杆 / WASD 走动小人，走到坐标自动从右侧拉开抽屉。
+ * 全屏竖屏地图：按住屏幕任意位置会出现摇杆，拖动即可在草地、石板路上自由走动；
+ * 点地面直接走过去，走到坐标自动从右侧拉开抽屉。
  * 窄屏用 cover 铺满裁切左右，宽屏用 contain + 模糊背景保证内容完整。
  */
 export default function MapPortrait({ slug, onArrive }: Props) {
@@ -27,18 +28,30 @@ export default function MapPortrait({ slug, onArrive }: Props) {
   const contentRef = useRef<HTMLDivElement>(null)
   const imgRef = useRef<HTMLImageElement>(null)
   const charRef = useRef<HTMLDivElement>(null)
+  const knobRef = useRef<HTMLSpanElement>(null)
   const [imgFailed, setImgFailed] = useState(false)
+  const [joy, setJoy] = useState<{ x: number; y: number } | null>(null)
 
   const slugRef = useRef(slug)
   slugRef.current = slug
 
   const keys = useRef(new Set<string>())
-  const joy = useRef({ x: 0, y: 0 })
+  const vec = useRef({ x: 0, y: 0 }) // 键盘/摇杆合成的方向向量
+
+  // 指针状态：按下即出现摇杆，拖动超过 TAP_SLOP 才算操作
+  const ptr = useRef({
+    active: false,
+    id: -1,
+    cx: 0,
+    cy: 0, // 摇杆圆心（屏幕坐标）
+    sx: 0,
+    sy: 0,
+    moved: false,
+  })
 
   const st = useRef({
     pos: { x: 0, y: 0 },
-    s: 0, // 沿 PATH 的位置：整数=节点，小数=段内比例
-    targetS: null as number | null,
+    target: null as { x: number; y: number } | null,
     onDone: null as null | ((slug: string) => void),
     pendingSlug: '',
     goto: '', // 指定前往的坐标：途中不响应其它坐标
@@ -48,13 +61,13 @@ export default function MapPortrait({ slug, onArrive }: Props) {
     frameClock: 0,
     moving: false,
     ready: false,
-    corridor: 30,
     trigger: 36,
     release: 72,
+    bounds: { w: 0, h: 0 },
     pathPx: [] as { x: number; y: number }[],
-    len: [] as number[],
   })
 
+  /** PATH 上第 s 个参数处的像素坐标（仅用于确定坐标点位置） */
   const posOf = (s: number): { x: number; y: number } => {
     const pts = st.current.pathPx
     if (!pts.length) return { x: 0, y: 0 }
@@ -66,24 +79,12 @@ export default function MapPortrait({ slug, onArrive }: Props) {
     return { x: a.x + (b.x - a.x) * frac, y: a.y + (b.y - a.y) * frac }
   }
 
-  /** 点到石板路折线的最近距离，同时返回全局参数 s */
-  const nearestOnPath = (p: { x: number; y: number }): { d: number; s: number } => {
-    const pts = st.current.pathPx
-    let best = { d: Infinity, s: 0 }
-    for (let i = 0; i < pts.length - 1; i++) {
-      const a = pts[i]
-      const b = pts[i + 1]
-      const vx = b.x - a.x
-      const vy = b.y - a.y
-      const len2 = vx * vx + vy * vy || 1
-      let t = ((p.x - a.x) * vx + (p.y - a.y) * vy) / len2
-      t = Math.max(0, Math.min(1, t))
-      const qx = a.x + vx * t
-      const qy = a.y + vy * t
-      const d = Math.hypot(p.x - qx, p.y - qy)
-      if (d < best.d) best = { d, s: i + t }
+  const clampPos = (x: number, y: number): { x: number; y: number } => {
+    const { w, h } = st.current.bounds
+    return {
+      x: Math.max(12, Math.min(w - 12, x)),
+      y: Math.max(18, Math.min(h - 8, y)),
     }
-    return best
   }
 
   const paint = () => {
@@ -96,54 +97,29 @@ export default function MapPortrait({ slug, onArrive }: Props) {
     el.style.backgroundPosition = `${-frame * FRAME_W}px 0px`
   }
 
-  /** 沿路走 s → 该参数处；到达后回调 */
-  const walkTo = (target: number, onDone?: (slug: string) => void, pendingSlug = '') => {
+  /** 沿直线走到该像素点；到达后回调 */
+  const walkTo = (target: { x: number; y: number }, onDone?: (slug: string) => void, pendingSlug = '') => {
     const s = st.current
-    if (!s.ready || target < 0 || target > PATH.length - 1) {
+    if (!s.ready) {
       onDone?.(pendingSlug)
       return
     }
-    s.targetS = target
+    s.target = clampPos(target.x, target.y)
     s.onDone = onDone ?? null
     s.pendingSlug = pendingSlug
     s.goto = pendingSlug
-    if (Math.abs(s.s - target) < 0.02) arrive()
+    if (Math.hypot(s.target.x - s.pos.x, s.target.y - s.pos.y) < 2) arrive()
   }
 
   const arrive = () => {
     const s = st.current
-    s.targetS = null
+    s.target = null
     s.moving = false
     const cb = s.onDone
     const pending = s.pendingSlug
     s.onDone = null
     s.goto = ''
     cb?.(pending)
-  }
-
-  /** 自由移动一格，限制在石板路走廊内（贴墙时只走可行的分量） */
-  const step = (dx: number, dy: number) => {
-    const s = st.current
-    const tryMove = (nx: number, ny: number) =>
-      nearestOnPath({ x: nx, y: ny }).d <= s.corridor
-    const { pos } = s
-    if (dx !== 0 || dy !== 0) {
-      if (Math.abs(dx) > Math.abs(dy)) {
-        if (tryMove(pos.x + dx, pos.y + dy)) pos.x += dx, (pos.y += dy)
-        else if (tryMove(pos.x + dx, pos.y)) pos.x += dx
-        else if (tryMove(pos.x, pos.y + dy)) pos.y += dy
-      } else {
-        if (tryMove(pos.x + dx, pos.y + dy)) pos.x += dx, (pos.y += dy)
-        else if (tryMove(pos.x, pos.y + dy)) pos.y += dy
-        else if (tryMove(pos.x + dx, pos.y)) pos.x += dx
-      }
-      if (Math.abs(dx) > 0.2) s.facing = dx > 0 ? 1 : -1
-      s.moving = true
-      s.targetS = null
-      s.onDone = null
-      s.goto = ''
-      s.s = nearestOnPath(pos).s
-    }
   }
 
   const measure = () => {
@@ -169,7 +145,7 @@ export default function MapPortrait({ slug, onArrive }: Props) {
       dw = area.w
       dh = area.h
     } else if (area.w / area.h > nw / nh) {
-      // 视口比图更宽 → contain，左右用模糊背景铺满
+      // 视口比图更宽 → contain 居中，左右用模糊背景铺满
       dh = area.h
       dw = (dh * nw) / nh
       dx = area.x + (area.w - dw) / 2
@@ -195,29 +171,21 @@ export default function MapPortrait({ slug, onArrive }: Props) {
     }
 
     const s = st.current
-    s.corridor = Math.max(16, dw * CORRIDOR_RATIO)
     s.trigger = Math.max(20, dw * TRIGGER_RATIO)
     s.release = Math.max(34, dw * RELEASE_RATIO)
+    s.bounds = { w: dw, h: dh }
     const first = !s.ready
     s.pathPx = PATH.map((p) => ({ x: (p.x / 100) * dw, y: (p.y / 100) * dh }))
-    const len: number[] = []
-    for (let i = 0; i < s.pathPx.length - 1; i++) {
-      len.push(Math.hypot(s.pathPx[i + 1].x - s.pathPx[i].x, s.pathPx[i + 1].y - s.pathPx[i].y))
-    }
-    s.len = len
     s.ready = true
     if (first) {
       const node = STOPS[slugRef.current]
       if (node !== undefined) {
         // 深链 / chips 直达：直接站在对应坐标的路口
         s.pos = { ...s.pathPx[node] }
-        s.s = node
         s.triggered = slugRef.current
       } else {
-        // 默认开局在地图中央附近的石板路上
-        const mid = nearestOnPath({ x: dw / 2, y: dh / 2 })
-        s.s = Number.isFinite(mid.s) ? mid.s : 0
-        s.pos = { ...posOf(s.s) }
+        // 默认开局站在地图正中央（草地/路面均可走）
+        s.pos = clampPos(dw / 2, dh / 2)
         // 预占最近的坐标：开局不弹抽屉，走远再回来才会触发
         let best = ''
         let bestD = Infinity
@@ -232,7 +200,8 @@ export default function MapPortrait({ slug, onArrive }: Props) {
         if (bestD < s.release) s.triggered = best
       }
     } else {
-      s.pos = { ...posOf(s.s) } // 重算后仍贴在石板路上
+      // 尺寸变化：保持相对位置，仍落在地图范围内
+      s.pos = clampPos(s.pos.x, s.pos.y)
     }
     paint()
   }
@@ -297,11 +266,15 @@ export default function MapPortrait({ slug, onArrive }: Props) {
   useEffect(() => {
     if (!slug) return
     const node = STOPS[slug]
-    if (node !== undefined) walkTo(node)
+    if (node !== undefined) {
+      keys.current.clear()
+      vec.current = { x: 0, y: 0 }
+      walkTo(posOf(node), undefined, '')
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug])
 
-  // 主循环：自由移动 / 沿路行走 / 帧动画 / 坐标触发
+  // 主循环：自由移动 / 直线行走 / 帧动画 / 坐标触发
   useEffect(() => {
     let raf = 0
     let last = performance.now()
@@ -316,45 +289,43 @@ export default function MapPortrait({ slug, onArrive }: Props) {
       let moving = false
 
       if (!blocked) {
-        // 1) 键盘 / 摇杆自由走动
-        let kx = 0
-        let ky = 0
+        // 1) 键盘 / 摇杆自由走动（草地与路面都可走）
+        let kx = vec.current.x
+        let ky = vec.current.y
         if (keys.current.has('left')) kx -= 1
         if (keys.current.has('right')) kx += 1
         if (keys.current.has('up')) ky -= 1
         if (keys.current.has('down')) ky += 1
-        kx += joy.current.x
-        ky += joy.current.y
         const mag = Math.hypot(kx, ky)
         if (mag > 0.08) {
-          const nx = (kx / mag) * SPEED * dt
-          const ny = (ky / mag) * SPEED * dt
-          step(nx, ny)
-          moving = s.moving
+          const d = Math.hypot(kx, ky)
+          const nx = (kx / d) * SPEED * dt
+          const ny = (ky / d) * SPEED * dt
+          s.pos = clampPos(s.pos.x + nx, s.pos.y + ny)
+          if (Math.abs(nx) > 0.2) s.facing = nx > 0 ? 1 : -1
+          s.moving = true
+          s.target = null
+          s.onDone = null
+          s.goto = ''
+          moving = true
         }
       }
 
-      // 2) 沿路行走（点坐标 / 点地面 / chips）——抽屉打开时也继续走到位
-      {
-        if (s.targetS !== null && s.ready) {
-          const n = PATH.length
-          const seg = Math.min(Math.max(Math.floor(s.s), 0), n - 2)
-          const segLen = s.len[seg] || 1
-          const ds = (SPEED * dt) / segLen
-          const diff = s.targetS - s.s
-          if (Math.abs(diff) <= ds) {
-            s.s = s.targetS
-            s.pos = { ...posOf(s.s) }
-            arrive()
-          } else {
-            s.s += Math.sign(diff) * ds
-            const before = posOf(s.s - Math.sign(diff) * 0.02)
-            const after = posOf(s.s)
-            s.pos = { ...after }
-            if (Math.abs(after.x - before.x) > 0.3) s.facing = after.x >= before.x ? 1 : -1
-          }
-          moving = true
+      // 2) 直线行走（点地面 / 点坐标 / chips）——抽屉打开时也继续走到位
+      if (s.target) {
+        const dx = s.target.x - s.pos.x
+        const dy = s.target.y - s.pos.y
+        const d = Math.hypot(dx, dy)
+        const ds = SPEED * dt
+        if (d <= ds) {
+          s.pos = { ...s.target }
+          arrive()
+        } else {
+          s.pos.x += (dx / d) * ds
+          s.pos.y += (dy / d) * ds
+          if (Math.abs(dx) > 0.3) s.facing = dx > 0 ? 1 : -1
         }
+        moving = true
       }
 
       s.moving = moving
@@ -399,67 +370,85 @@ export default function MapPortrait({ slug, onArrive }: Props) {
     const node = STOPS[slug]
     if (node === undefined) return
     keys.current.clear()
-    joy.current = { x: 0, y: 0 }
-    walkTo(node, onArrive, slug)
+    vec.current = { x: 0, y: 0 }
+    walkTo(posOf(node), onArrive, slug)
   }
 
-  /** 点地图任意位置 → 小人沿石板路走到最近的位置 */
-  const handleGround = (e: React.PointerEvent) => {
+  const paintKnob = (vx: number, vy: number) => {
+    if (knobRef.current) knobRef.current.style.transform = `translate(${vx * JOY_VIS}px, ${vy * JOY_VIS}px)`
+  }
+
+  // 按下：在手指位置出现摇杆
+  const onScreenDown = (e: React.PointerEvent) => {
     if (slugRef.current || !st.current.ready) return
-    if ((e.target as HTMLElement).closest('.map-pin, .joystick')) return
+    if ((e.target as HTMLElement).closest('.map-pin')) return
+    const r = screenRef.current!.getBoundingClientRect()
+    const cx = e.clientX - r.left
+    const cy = e.clientY - r.top
+    ptr.current = { active: true, id: e.pointerId, cx, cy, sx: e.clientX, sy: e.clientY, moved: false }
+    setJoy({ x: cx, y: cy })
+    paintKnob(0, 0)
+    ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+  }
+
+  // 拖动：超过阈值即接管走动
+  const onScreenMove = (e: React.PointerEvent) => {
+    const p = ptr.current
+    if (!p.active || e.pointerId !== p.id) return
+    if (!p.moved && Math.hypot(e.clientX - p.sx, e.clientY - p.sy) > TAP_SLOP) {
+      p.moved = true
+      keys.current.clear()
+      st.current.target = null
+      st.current.onDone = null
+      st.current.goto = ''
+    }
+    if (!p.moved) return
+    let vx = (e.clientX - p.cx) / JOY_IN
+    let vy = (e.clientY - p.cy) / JOY_IN
+    const m = Math.hypot(vx, vy)
+    if (m > 1) {
+      vx /= m
+      vy /= m
+    }
+    vec.current = { x: vx, y: vy }
+    paintKnob(vx, vy)
+  }
+
+  // 抬起：拖过→松手停住；没拖过→点按，直接走到该处
+  const onScreenUp = (e: React.PointerEvent) => {
+    const p = ptr.current
+    if (!p.active || e.pointerId !== p.id) return
+    p.active = false
+    const dragged = p.moved
+    vec.current = { x: 0, y: 0 }
+    paintKnob(0, 0)
+    setJoy(null)
+    if (dragged || slugRef.current) return
     const content = contentRef.current
     if (!content) return
     const r = content.getBoundingClientRect()
-    const p = { x: e.clientX - r.left, y: e.clientY - r.top }
-    const near = nearestOnPath(p)
-    if (!Number.isFinite(near.d)) return
     keys.current.clear()
     st.current.onDone = null
     st.current.pendingSlug = ''
-    walkTo(near.s)
-  }
-
-  const knobRef = useRef<HTMLSpanElement>(null)
-
-  const paintKnob = (dx: number, dy: number) => {
-    if (knobRef.current) knobRef.current.style.transform = `translate(${dx * 22}px, ${dy * 22}px)`
-  }
-
-  const onJoyDown = (e: React.PointerEvent) => {
-    e.stopPropagation()
-    ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
-    updateJoy(e)
-  }
-  const updateJoy = (e: React.PointerEvent) => {
-    const box = (e.currentTarget as HTMLElement).getBoundingClientRect()
-    const cx = box.left + box.width / 2
-    const cy = box.top + box.height / 2
-    const r = box.width / 2
-    let dx = (e.clientX - cx) / r
-    let dy = (e.clientY - cy) / r
-    const m = Math.hypot(dx, dy)
-    if (m > 1) {
-      dx /= m
-      dy /= m
-    }
-    if (slugRef.current) return
-    joy.current = { x: dx, y: dy }
-    paintKnob(dx, dy)
-  }
-  const onJoyUp = () => {
-    joy.current = { x: 0, y: 0 }
-    paintKnob(0, 0)
+    walkTo({ x: e.clientX - r.left, y: e.clientY - r.top }, undefined, FREE_TAG)
   }
 
   return (
-    <div className="map-screen" ref={screenRef} onPointerDown={handleGround}>
+    <div
+      className="map-screen"
+      ref={screenRef}
+      onPointerDown={onScreenDown}
+      onPointerMove={onScreenMove}
+      onPointerUp={onScreenUp}
+      onPointerCancel={onScreenUp}
+    >
       <div className="map-bg" style={{ backgroundImage: `url(${imgFailed ? '' : MAP_IMAGE})` }} />
       {!imgFailed ? (
         <img
           ref={imgRef}
           className="map-img"
           src={MAP_IMAGE}
-          alt="全屏像素小镇地图，沿路分布六个栏目坐标"
+          alt="全屏像素小镇地图，六个栏目坐标分布在小岛各处"
           onLoad={measure}
           onError={() => setImgFailed(true)}
         />
@@ -505,26 +494,24 @@ export default function MapPortrait({ slug, onArrive }: Props) {
         />
       </div>
 
-      {/* 触屏 / 鼠标摇杆：自由走动 */}
+      {/* 跟手摇杆：按住屏幕任意位置即出现 */}
       <div
         className="joystick"
-        role="button"
-        tabIndex={-1}
-        aria-label="移动小人"
-        onPointerDown={onJoyDown}
-        onPointerMove={(e) => {
-          if (e.buttons > 0 || e.pointerType === 'touch') updateJoy(e)
+        aria-hidden="true"
+        style={{
+          left: joy ? joy.x : 0,
+          top: joy ? joy.y : 0,
+          opacity: joy ? 1 : 0,
+          visibility: joy ? 'visible' : 'hidden',
         }}
-        onPointerUp={onJoyUp}
-        onPointerCancel={onJoyUp}
-        onPointerLeave={onJoyUp}
       >
         <span className="joy-knob" ref={knobRef} />
       </div>
 
       <div className="map-hint">
-        <span className="hint-name">点坐标 / 点路面 / WASD 走动 → 走到坐标自动拉开抽屉</span>
+        <span className="hint-name">按住屏幕拖动 = 摇杆走动 · 点地面走过去 · 点栏目拉开抽屉</span>
       </div>
     </div>
   )
 }
+const FREE_TAG = '__free' // 点地自由行走：途中不响应路过坐标
