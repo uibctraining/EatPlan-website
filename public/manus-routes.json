@@ -1,0 +1,11 @@
+{
+  "routes": [
+    { "path": "/", "title": "首页地图" },
+    { "path": "/magazine", "title": "百科" },
+    { "path": "/dishes", "title": "美食词条" },
+    { "path": "/festival", "title": "岁时节庆" },
+    { "path": "/bioculture", "title": "生物与生态文化" },
+    { "path": "/area", "title": "按地区" },
+    { "path": "/places", "title": "吃货地图" }
+  ]
+}
