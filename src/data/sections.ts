@@ -14,9 +14,10 @@ export type Section = {
   /** 地图主视觉上的百分比定位（x 相对宽度，y 相对高度） */
   pin: { x: number; y: number }
   intro: string
-  image: string
   /** eatplan.online 上对应栏目的真实地址 */
   externalUrl: string
+  /** 抽屉主按钮文案（默认「在主站打开本栏目 ▶」） */
+  ctaLabel?: string
   items: SectionItem[]
 }
 
@@ -31,8 +32,7 @@ const rawSections: Section[] = [
     coord: { lat: 3.139, lng: 101.6869 },
     pin: { x: 61, y: 57 },
     intro:
-      '294 篇百科文章，用中文系统整理马来西亚的菜式、节庆、食材与地点资料。每一篇都尽量回到公开来源，把「是什么、从哪里来、怎么吃」讲清楚。',
-    image: '/manus-storage/async-images/gY2B3w0KUuR5TSPcRnshim/image-2.webp',
+      '280 篇百科文章，用中文系统整理马来西亚的菜式、节庆、食材与地点资料。每一篇都尽量回到公开来源，把「是什么、从哪里来、怎么吃」讲清楚。',
     externalUrl: `${SITE}/magazine/`,
     items: [
       {
@@ -76,7 +76,6 @@ const rawSections: Section[] = [
     pin: { x: 16, y: 32 },
     intro:
       '从椰浆饭到仁当，每一条词条都是一张小名片：它是什么、在哪里最常见、怎么点、配什么吃。逛词条就像在摊位前看菜单。',
-    image: '/manus-storage/async-images/gY2B3w0KUuR5TSPcRnshim/image-3.webp',
     externalUrl: `${SITE}/dishes/`,
     items: [
       {
@@ -120,7 +119,6 @@ const rawSections: Section[] = [
     pin: { x: 54, y: 25 },
     intro:
       '农历新年、开斋节、屠妖节、丰收节……马来西亚的公共假期背后，都有一套固定的食物与仪式。这里把日期、习俗与「怎么吃」放在一起。',
-    image: '/manus-storage/async-images/gY2B3w0KUuR5TSPcRnshim/image-4.webp',
     externalUrl: `${SITE}/festival/`,
     items: [
       {
@@ -164,7 +162,6 @@ const rawSections: Section[] = [
     pin: { x: 75, y: 25 },
     intro:
       '食物与生态、族群与手艺之间的隐形网络：从洞穴生态到发酵虾酱，从锡克社群的共享厨房到伊班人的竹筒烹调。',
-    image: '/manus-storage/async-images/gY2B3w0KUuR5TSPcRnshim/image-5.webp',
     externalUrl: `${SITE}/bioculture/`,
     items: [
       {
@@ -208,7 +205,6 @@ const rawSections: Section[] = [
     pin: { x: 38, y: 17 },
     intro:
       '十三个州各有一套自己的版本：槟城的亚参叻沙、吉兰丹的蓝花饭、霹雳的仁当、砂拉越的叻沙。先选地方，再选吃法。',
-    image: '/manus-storage/async-images/sS0nzppq1IBuOJbY0oiooB/image-1.webp',
     externalUrl: `${SITE}/area/`,
     items: [
       {
@@ -252,7 +248,6 @@ const rawSections: Section[] = [
     pin: { x: 44, y: 46 },
     intro:
       '把文章落到真实坐标上：洞穴、小镇、市集与庙宇。每个地点都附导航坐标，走到哪里，就吃到哪里。',
-    image: '/manus-storage/async-images/sS0nzppq1IBuOJbY0oiooB/image-2.webp',
     externalUrl: `${SITE}/places/`,
     items: [
       {
@@ -287,10 +282,38 @@ const rawSections: Section[] = [
       },
     ],
   },
+  {
+    slug: 'games',
+    navLabel: '吃货游戏',
+    title: '吃货游戏',
+    enLabel: 'GAME ROOM',
+    coord: { lat: 3.139, lng: 101.6869 },
+    pin: { x: 30, y: 47 },
+    intro:
+      '把马来西亚玩进地图里：拿着吃货护照去打卡盖章，回帮衬村经营你的小吃摊，或者坐下掷骰子环游半岛——三个小游戏，各玩各的，随时开局。',
+    externalUrl: 'https://game.eatplan.online/',
+    ctaLabel: '开局吃货大富翁 ▶',
+    items: [
+      {
+        title: '吃货大富翁 · 环马',
+        desc: '28 格环形棋盘走遍马来西亚：买地收租，还有股票、保险与财务报表的现金流玩法，单机或 6 人联机。',
+        url: 'https://game.eatplan.online/',
+      },
+      {
+        title: '吃货护照 H5',
+        desc: '边吃边盖章：走遍景点与摊位，把行程收进自己的护照。',
+        url: `${SITE}/passport/`,
+      },
+      {
+        title: '帮衬村',
+        desc: '经营你的小吃摊，看看一天能赚多少、能撑多久。',
+        url: `${SITE}/bangchen/`,
+      },
+    ],
+  },
 ]
 
-export const MAP_IMAGE = '/manus-storage/async-images/gY2B3w0KUuR5TSPcRnshim/image-1.webp'
-export const BRAND_BADGE = '/manus-storage/async-images/sS0nzppq1IBuOJbY0oiooB/image-3.webp'
+export const BRAND_BADGE = '/brand-badge.png'
 
 export function formatCoord(c: { lat: number; lng: number }): string {
   const latDir = c.lat >= 0 ? 'N' : 'S'
@@ -302,7 +325,7 @@ export function findSection(slug: string | undefined): Section | undefined {
   return sections.find((s) => s.slug === slug)
 }
 /** 行走顺序：码头出发自下而上，抽屉「下一站」也按此串联 */
-const WALK_ORDER = ['dishes', 'places', 'festival', 'magazine', 'bioculture', 'area']
+const WALK_ORDER = ['dishes', 'places', 'festival', 'magazine', 'games', 'bioculture', 'area']
 
 export const sections: Section[] = [...rawSections].sort(
   (a, b) => WALK_ORDER.indexOf(a.slug) - WALK_ORDER.indexOf(b.slug),

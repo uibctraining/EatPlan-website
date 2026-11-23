@@ -38,6 +38,7 @@ export const PATH: Pct[] = [
   { x: 41.4, y: 17.3 },
   { x: 41.9, y: 17.0 },
   { x: 50.3, y: 8.9 }, // 27 溶洞尽头
+  { x: 36.5, y: 47.5 }, // 28 · 吃货游戏（游戏屋门前，T780 追加不改既有索引）
 ]
 
 export const STOPS: Record<string, number> = {
@@ -47,6 +48,7 @@ export const STOPS: Record<string, number> = {
   magazine: 16,
   bioculture: 19,
   area: 22,
+  games: 28,
 }
 
 export const PINS: Record<string, Pct> = {
@@ -56,4 +58,5 @@ export const PINS: Record<string, Pct> = {
   festival: { x: 70, y: 38 },
   area: { x: 27, y: 15 },
   bioculture: { x: 74, y: 16 },
+  games: { x: 30, y: 47 },
 }

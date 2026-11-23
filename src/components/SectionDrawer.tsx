@@ -56,7 +56,7 @@ export default function SectionDrawer({ section, unknown, onClose, onGoto }: Pro
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                在主站打开本栏目 ▶
+                {section.ctaLabel || '在主站打开本栏目 ▶'}
               </a>
 
               <p className="section-kicker drawer-sub">SELECTED ENTRIES</p>

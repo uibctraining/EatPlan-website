@@ -62,7 +62,7 @@ export default function Layout() {
               </div>
             </div>
             <p className="info-desc">
-              吃货计划目前收录 294 篇百科文章，覆盖菜式、岁时节庆、食材生态与实地地点，全部附公开来源。这张地图是它的门面，正文仍在主站。
+              吃货计划目前收录 280 篇百科文章，覆盖菜式、岁时节庆、食材生态与实地地点，全部附公开来源。这张地图是它的门面，正文仍在主站。
             </p>
             <div className="footer-cols">
               <div className="footer-col">
@@ -80,7 +80,19 @@ export default function Layout() {
                 ))}
               </div>
               <div className="footer-col">
-                <h3>去主站</h3>
+                <h3>吃货游戏</h3>
+                <a href="https://eatplan.online/passport/" target="_blank" rel="noopener noreferrer">
+                  吃货护照
+                </a>
+                <a href="https://eatplan.online/bangchen/" target="_blank" rel="noopener noreferrer">
+                  帮衬村
+                </a>
+                <a href="https://game.eatplan.online/" target="_blank" rel="noopener noreferrer">
+                  吃货大富翁
+                </a>
+              </div>
+              <div className="footer-col">
+                <h3>逛主站</h3>
                 <a href="https://eatplan.online/" target="_blank" rel="noopener noreferrer">
                   发现
                 </a>
@@ -95,8 +107,29 @@ export default function Layout() {
                 </a>
               </div>
               <div className="footer-col">
+                <h3>玩法社区</h3>
+                <a href="https://eatplan.online/points-shop/" target="_blank" rel="noopener noreferrer">
+                  兑换商城
+                </a>
+                <a href="https://eatplan.online/luntan/" target="_blank" rel="noopener noreferrer">
+                  吃货论坛
+                </a>
+                <a href="https://eatplan.online/gonggao/" target="_blank" rel="noopener noreferrer">
+                  吃货公告
+                </a>
+                <a href="https://eatplan.online/support/?ep_classic=1&new=1&category=feedback" target="_blank" rel="noopener noreferrer">
+                  我要反馈
+                </a>
+              </div>
+              <div className="footer-col">
                 <h3>关于</h3>
-                <a href="https://eatplan.online/privacy-policy/" target="_blank" rel="noopener noreferrer">
+                <a href="https://eatplan.online/about/" target="_blank" rel="noopener noreferrer">
+                  关于我们
+                </a>
+                <a href="https://eatplan.online/contact/" target="_blank" rel="noopener noreferrer">
+                  联络我们
+                </a>
+                <a href="https://eatplan.online/privacy/" target="_blank" rel="noopener noreferrer">
                   隐私政策
                 </a>
                 <a href="https://eatplan.online/me/" target="_blank" rel="noopener noreferrer">
