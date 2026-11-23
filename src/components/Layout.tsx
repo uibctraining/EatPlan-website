@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import IslandStage from './IslandStage'
+import MapPortrait from './MapPortrait'
 import SectionDrawer from './SectionDrawer'
 import { BRAND_BADGE, findSection, sections } from '../data/sections'
 
@@ -13,15 +13,12 @@ export default function Layout() {
   const section = slug ? findSection(slug) : undefined
   const unknown = !!slug && !section
 
-  // 关闭后，角色必须先离开该坐标区域，才会再次自动弹出
-  const dismissed = useRef(new Set<string>())
-
   useEffect(() => {
     document.title = section
       ? `${section.title}｜吃货计划 EAT PLAN`
       : unknown
         ? '页面走丢了｜吃货计划 EAT PLAN'
-        : '吃货计划 EAT PLAN — 走进坐标逛马来西亚美食百科'
+        : '吃货计划 EAT PLAN — 沿着坐标逛马来西亚美食百科'
   }, [section, unknown])
 
   useEffect(() => {
@@ -34,15 +31,10 @@ export default function Layout() {
     return () => window.removeEventListener('keydown', onKey)
   }, [infoOpen, slug, navigate])
 
-  const closeDrawer = () => {
-    if (slug) dismissed.current.add(slug)
-    navigate('/')
-  }
-
   return (
     <div className="app-shell">
       <header className="hud-top">
-        <Link to="/" className="brand" aria-label="吃货计划小岛">
+        <Link to="/" className="brand" aria-label="吃货计划首页">
           <img src={BRAND_BADGE} alt="" className="brand-badge" width={40} height={40} />
           <span className="brand-text">
             <strong>吃货计划</strong>
@@ -67,28 +59,12 @@ export default function Layout() {
         </button>
       </header>
 
-      <IslandStage
-        drawerOpen={!!slug}
-        onZoneEnter={(s) => {
-          if (!dismissed.current.has(s)) navigate(`/${s}`)
-        }}
-        onZoneLeave={(s) => dismissed.current.delete(s)}
-        onPickBuilding={(s) => {
-          dismissed.current.delete(s)
-          navigate(`/${s}`)
-        }}
-        onAction={(s) => {
-          if (s) {
-            dismissed.current.delete(s)
-            navigate(`/${s}`)
-          }
-        }}
-      />
+      <MapPortrait slug={slug} onArrive={(s) => navigate(`/${s}`)} />
 
       <SectionDrawer
         section={section ?? null}
         unknown={unknown}
-        onClose={closeDrawer}
+        onClose={() => navigate('/')}
         onGoto={(s) => navigate(`/${s}`)}
       />
 
@@ -106,11 +82,11 @@ export default function Layout() {
               </div>
             </div>
             <p className="info-desc">
-              吃货计划目前收录 294 篇百科文章，覆盖菜式、岁时节庆、食材生态与实地地点，全部附公开来源。这座小岛是它的门面，正文仍在主站。
+              吃货计划目前收录 294 篇百科文章，覆盖菜式、岁时节庆、食材生态与实地地点，全部附公开来源。这张地图是它的门面，正文仍在主站。
             </p>
             <div className="footer-cols">
               <div className="footer-col">
-                <h3>逛小岛</h3>
+                <h3>逛地图</h3>
                 {sections.map((s) => (
                   <button
                     key={s.slug}
@@ -148,7 +124,9 @@ export default function Layout() {
                 </a>
               </div>
             </div>
-            <p className="footer-copy">© {new Date().getFullYear()} 吃货计划 EAT PLAN · Beta Ver 1.0 · 内容整理自公开来源</p>
+            <p className="footer-copy">
+              © {new Date().getFullYear()} 吃货计划 EAT PLAN · Beta Ver 1.0 · 内容整理自公开来源
+            </p>
           </div>
         </div>
       )}

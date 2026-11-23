@@ -1,5 +1,5 @@
 /* ============================================================
-   吃货计划 EAT PLAN — 3D 像素小岛官网
+   吃货计划 EAT PLAN — 竖屏平面图官网（小人沿路走到坐标拉开抽屉）
    风格：16-bit 像素游戏 UI × 南洋娘惹暖色
    ============================================================ */
 
@@ -217,54 +217,8 @@ button {
   box-shadow: 1px 1px 0 var(--ink);
 }
 
-/* ---------- 3D 舞台 ---------- */
+/* ---------- 通用舞台提示（地图下方的操作说明） ---------- */
 
-.island-stage {
-  position: absolute;
-  inset: 0;
-}
-
-.island-canvas {
-  position: absolute;
-  inset: 0;
-}
-
-.island-canvas canvas {
-  display: block;
-}
-
-.stage-fallback {
-  position: absolute;
-  inset: 0;
-  z-index: 15;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  gap: 8px;
-  padding: 24px;
-  text-align: center;
-  background: linear-gradient(180deg, #8fd1d8 0%, #f6e7c9 100%);
-}
-
-.stage-fallback h2 {
-  margin: 0;
-  font-size: clamp(20px, 5vw, 28px);
-}
-
-.stage-fallback p {
-  margin: 0;
-  color: var(--ink-soft);
-}
-
-.fallback-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  justify-content: center;
-  max-width: 520px;
-  margin-top: 10px;
-}
 
 .stage-hint {
   position: absolute;
@@ -298,63 +252,146 @@ button {
   line-height: 1.4;
 }
 
-/* ---------- 虚拟摇杆 ---------- */
+/* ---------- 竖屏平面图 ---------- */
 
-.joystick {
+.map-screen {
   position: absolute;
-  left: 18px;
-  bottom: 24px;
-  z-index: 25;
-  width: 118px;
-  height: 118px;
-  border-radius: 50%;
-  background: rgba(255, 246, 231, 0.55);
-  border: var(--border);
-  box-shadow: var(--shadow-sm);
-  touch-action: none;
-  display: grid;
-  place-items: center;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 74px 12px 14px;
 }
 
-.joystick-knob {
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
-  background: var(--gold);
+.map-frame {
+  position: relative;
+  width: min(100%, 460px, calc((100dvh - 168px) * 0.5625));
+  aspect-ratio: 9 / 16;
+  border: var(--border);
+  box-shadow: 8px 8px 0 var(--green-deep);
+  background: var(--sky);
+}
+
+.map-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.map-img-fallback {
+  background:
+    radial-gradient(circle at 30% 20%, rgba(255, 246, 231, 0.5), transparent 40%),
+    linear-gradient(180deg, #8fd1d8 0%, #5aa054 70%, #3f7f3c 100%);
+}
+
+.map-pin {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  z-index: 5;
+}
+
+.pin-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 7px;
+  background: var(--paper);
   border: var(--border-thin);
-  box-shadow: 3px 3px 0 rgba(42, 38, 34, 0.5);
-  pointer-events: none;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+  white-space: nowrap;
 }
 
-.action-btn {
-  position: absolute;
-  right: 18px;
-  bottom: 30px;
-  z-index: 25;
-  font-size: 15px;
+.pin-name {
+  font-size: 12px;
   font-weight: 800;
-  padding: 14px 18px;
-  color: var(--paper);
-  background: var(--green);
-  border: var(--border);
-  box-shadow: var(--shadow);
-  animation: pop-in 0.22s ease;
+  letter-spacing: 0.5px;
 }
 
-.action-btn:active {
-  transform: translate(3px, 3px);
-  box-shadow: 3px 3px 0 var(--ink);
+.pin-coord {
+  font-family: var(--font-pixel);
+  font-size: 6px;
+  color: var(--green);
+  letter-spacing: 0.3px;
 }
 
-@keyframes pop-in {
-  from {
-    transform: scale(0.85);
+.pin-dot {
+  width: 16px;
+  height: 16px;
+  background: var(--gold);
+  border: 3px solid var(--ink);
+  box-shadow: 3px 3px 0 rgba(42, 38, 34, 0.55);
+  position: relative;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.pin-dot::after {
+  content: '';
+  position: absolute;
+  inset: -9px;
+  border: 3px solid rgba(255, 246, 231, 0.9);
+  animation: ping 1.8s ease-out infinite;
+}
+
+.map-pin:hover .pin-label,
+.map-pin:focus-visible .pin-label,
+.map-pin.is-active .pin-label {
+  transform: translateY(-3px);
+  background: var(--gold);
+  box-shadow: 6px 6px 0 var(--ink);
+}
+
+.map-pin:hover .pin-dot,
+.map-pin.is-active .pin-dot {
+  transform: scale(1.2);
+  background: var(--brick);
+}
+
+.map-pin:focus-visible {
+  outline: none;
+}
+
+.walker {
+  position: absolute;
+  z-index: 6;
+  image-rendering: pixelated;
+  background-repeat: no-repeat;
+  pointer-events: none;
+  will-change: left, top, background-position;
+  filter: drop-shadow(2px 3px 0 rgba(42, 38, 34, 0.3));
+}
+
+.map-hint {
+  position: static;
+  transform: none;
+  max-width: min(92vw, 460px);
+}
+
+@keyframes ping {
+  0% {
+    transform: scale(0.55);
+    opacity: 0.9;
+  }
+
+  70% {
+    transform: scale(1.35);
     opacity: 0;
   }
 
-  to {
-    transform: scale(1);
-    opacity: 1;
+  100% {
+    opacity: 0;
   }
 }
 
@@ -705,21 +742,6 @@ button {
   .stage-hint {
     bottom: 158px;
     max-width: 84vw;
-  }
-
-  .joystick {
-    width: 108px;
-    height: 108px;
-    bottom: 18px;
-    left: 14px;
-  }
-
-  .action-btn {
-    right: 14px;
-    bottom: 24px;
-    font-size: 14px;
-    padding: 12px 14px;
-    max-width: 46vw;
   }
 
   .footer-cols {

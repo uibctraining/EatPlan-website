@@ -22,7 +22,7 @@ export type Section = {
 
 const SITE = 'https://eatplan.online'
 
-export const sections: Section[] = [
+const rawSections: Section[] = [
   {
     slug: 'magazine',
     navLabel: '百科',
@@ -301,3 +301,9 @@ export function formatCoord(c: { lat: number; lng: number }): string {
 export function findSection(slug: string | undefined): Section | undefined {
   return sections.find((s) => s.slug === slug)
 }
+/** 行走顺序：码头出发自下而上，抽屉「下一站」也按此串联 */
+const WALK_ORDER = ['dishes', 'places', 'magazine', 'festival', 'area', 'bioculture']
+
+export const sections: Section[] = [...rawSections].sort(
+  (a, b) => WALK_ORDER.indexOf(a.slug) - WALK_ORDER.indexOf(b.slug),
+)
