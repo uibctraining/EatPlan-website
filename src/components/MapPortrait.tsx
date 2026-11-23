@@ -1,11 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { formatCoord, sections } from '../data/sections'
 import { PATH, PINS, STOPS } from '../map/mapLayout'
-import { FRAME_W, FRAMES, createWalkerSprite } from '../map/sprite'
+import { FRAME_H, FRAME_W, FRAMES, WALKER_IMAGE } from '../map/sprite'
 
 const MAP_IMAGE = '/map-town.webp'
 
-const SCALE = 3 // 精灵图 16px → 显示 48px
 const SPEED = 170 // 小人每秒走多少像素
 // 半径按地图显示宽度取比例：路宽变化时走廊与触发范围跟着自适应
 const CORRIDOR_RATIO = 0.05 // 离石板路中心线多宽以内才算走在路上
@@ -29,7 +28,6 @@ export default function MapPortrait({ slug, onArrive }: Props) {
   const imgRef = useRef<HTMLImageElement>(null)
   const charRef = useRef<HTMLDivElement>(null)
   const [imgFailed, setImgFailed] = useState(false)
-  const sprite = useMemo(() => createWalkerSprite(), [])
 
   const slugRef = useRef(slug)
   slugRef.current = slug
@@ -94,8 +92,8 @@ export default function MapPortrait({ slug, onArrive }: Props) {
     const { pos, facing, frame } = st.current
     el.style.left = `${pos.x}px`
     el.style.top = `${pos.y}px`
-    el.style.transform = `translate(-50%, -88%) scaleX(${facing})`
-    el.style.backgroundPosition = `${-frame * FRAME_W * SCALE}px 0px`
+    el.style.transform = `translate(-50%, -95%) scaleX(${facing})`
+    el.style.backgroundPosition = `${-frame * FRAME_W}px 0px`
   }
 
   /** 沿路走 s → 该参数处；到达后回调 */
@@ -209,13 +207,29 @@ export default function MapPortrait({ slug, onArrive }: Props) {
     s.len = len
     s.ready = true
     if (first) {
-      s.pos = { ...s.pathPx[0] } // 码头出发
-      s.s = 0
       const node = STOPS[slugRef.current]
       if (node !== undefined) {
+        // 深链 / chips 直达：直接站在对应坐标的路口
         s.pos = { ...s.pathPx[node] }
         s.s = node
         s.triggered = slugRef.current
+      } else {
+        // 默认开局在地图中央附近的石板路上
+        const mid = nearestOnPath({ x: dw / 2, y: dh / 2 })
+        s.s = Number.isFinite(mid.s) ? mid.s : 0
+        s.pos = { ...posOf(s.s) }
+        // 预占最近的坐标：开局不弹抽屉，走远再回来才会触发
+        let best = ''
+        let bestD = Infinity
+        for (const key of Object.keys(STOPS)) {
+          const p = posOf(STOPS[key])
+          const d = Math.hypot(p.x - s.pos.x, p.y - s.pos.y)
+          if (d < bestD) {
+            bestD = d
+            best = key
+          }
+        }
+        if (bestD < s.release) s.triggered = best
       }
     } else {
       s.pos = { ...posOf(s.s) } // 重算后仍贴在石板路上
@@ -472,7 +486,6 @@ export default function MapPortrait({ slug, onArrive }: Props) {
             >
               <span className="pin-label">
                 <span className="pin-name">{s.navLabel}</span>
-                <span className="pin-coord">{formatCoord(s.coord)}</span>
               </span>
               <span className="pin-dot" aria-hidden="true" />
             </button>
@@ -484,10 +497,10 @@ export default function MapPortrait({ slug, onArrive }: Props) {
           ref={charRef}
           aria-hidden="true"
           style={{
-            width: FRAME_W * SCALE,
-            height: 16 * SCALE,
-            backgroundImage: `url(${sprite})`,
-            backgroundSize: `${FRAME_W * FRAMES * SCALE}px ${16 * SCALE}px`,
+            width: FRAME_W,
+            height: FRAME_H,
+            backgroundImage: `url(${WALKER_IMAGE})`,
+            backgroundSize: `${FRAME_W * FRAMES}px ${FRAME_H}px`,
           }}
         />
       </div>

@@ -239,13 +239,6 @@ button {
   letter-spacing: 0.5px;
 }
 
-.pin-coord {
-  font-family: var(--font-pixel);
-  font-size: 6px;
-  color: var(--green);
-  letter-spacing: 0.3px;
-}
-
 .pin-dot {
   width: 16px;
   height: 16px;
