@@ -1,103 +1,157 @@
-import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
-import { useEffect } from 'react'
-import { BRAND_BADGE, sections } from '../data/sections'
+import { useEffect, useRef, useState } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import IslandStage from './IslandStage'
+import SectionDrawer from './SectionDrawer'
+import { BRAND_BADGE, findSection, sections } from '../data/sections'
 
 export default function Layout() {
   const location = useLocation()
+  const navigate = useNavigate()
+  const [infoOpen, setInfoOpen] = useState(false)
+
+  const slug = location.pathname.replace(/^\/+|\/+$/g, '')
+  const section = slug ? findSection(slug) : undefined
+  const unknown = !!slug && !section
+
+  // 关闭后，角色必须先离开该坐标区域，才会再次自动弹出
+  const dismissed = useRef(new Set<string>())
 
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior })
-  }, [location.pathname])
+    document.title = section
+      ? `${section.title}｜吃货计划 EAT PLAN`
+      : unknown
+        ? '页面走丢了｜吃货计划 EAT PLAN'
+        : '吃货计划 EAT PLAN — 走进坐标逛马来西亚美食百科'
+  }, [section, unknown])
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      if (infoOpen) setInfoOpen(false)
+      else if (slug) navigate('/')
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [infoOpen, slug, navigate])
+
+  const closeDrawer = () => {
+    if (slug) dismissed.current.add(slug)
+    navigate('/')
+  }
 
   return (
-    <div className="site">
-      <header className="site-header">
-        <Link to="/" className="brand" aria-label="吃货计划首页">
-          <img src={BRAND_BADGE} alt="" className="brand-badge" width={44} height={44} />
+    <div className="app-shell">
+      <header className="hud-top">
+        <Link to="/" className="brand" aria-label="吃货计划小岛">
+          <img src={BRAND_BADGE} alt="" className="brand-badge" width={40} height={40} />
           <span className="brand-text">
             <strong>吃货计划</strong>
             <em>EAT PLAN</em>
           </span>
         </Link>
 
-        <nav className="site-nav" aria-label="栏目直达">
+        <nav className="hud-nav" aria-label="坐标直达">
           {sections.map((s) => (
-            <NavLink
+            <button
               key={s.slug}
-              to={`/${s.slug}`}
-              className={({ isActive }) => (isActive ? 'nav-link is-active' : 'nav-link')}
+              className={slug === s.slug ? 'chip is-active' : 'chip'}
+              onClick={() => navigate(`/${s.slug}`)}
             >
               {s.navLabel}
-            </NavLink>
+            </button>
           ))}
-          <a
-            className="nav-link nav-external"
-            href="https://eatplan.online/"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            主站 ▶
-          </a>
         </nav>
+
+        <button className="hud-info" onClick={() => setInfoOpen(true)} aria-label="关于与链接">
+          i
+        </button>
       </header>
 
-      <main>
-        <Outlet />
-      </main>
+      <IslandStage
+        drawerOpen={!!slug}
+        onZoneEnter={(s) => {
+          if (!dismissed.current.has(s)) navigate(`/${s}`)
+        }}
+        onZoneLeave={(s) => dismissed.current.delete(s)}
+        onPickBuilding={(s) => {
+          dismissed.current.delete(s)
+          navigate(`/${s}`)
+        }}
+        onAction={(s) => {
+          if (s) {
+            dismissed.current.delete(s)
+            navigate(`/${s}`)
+          }
+        }}
+      />
 
-      <footer className="site-footer">
-        <div className="footer-inner">
-          <div className="footer-brand">
-            <img src={BRAND_BADGE} alt="" className="brand-badge" width={56} height={56} />
-            <div>
-              <p className="footer-slogan">下一站，想去哪里？</p>
-              <p className="footer-sub">找一处好吃的，走一段有故事的街。</p>
-            </div>
-          </div>
+      <SectionDrawer
+        section={section ?? null}
+        unknown={unknown}
+        onClose={closeDrawer}
+        onGoto={(s) => navigate(`/${s}`)}
+      />
 
-          <div className="footer-cols">
-            <div className="footer-col">
-              <h3>逛地图</h3>
-              {sections.map((s) => (
-                <Link key={s.slug} to={`/${s.slug}`}>
-                  {s.navLabel}
-                </Link>
-              ))}
+      {infoOpen && (
+        <div className="info-modal" role="dialog" aria-modal="true" aria-label="关于吃货计划">
+          <div className="info-card">
+            <button className="drawer-close info-close" onClick={() => setInfoOpen(false)} aria-label="关闭">
+              ✕
+            </button>
+            <div className="footer-brand">
+              <img src={BRAND_BADGE} alt="" className="brand-badge" width={56} height={56} />
+              <div>
+                <p className="footer-slogan">下一站，想去哪里？</p>
+                <p className="footer-sub">找一处好吃的，走一段有故事的街。</p>
+              </div>
             </div>
-            <div className="footer-col">
-              <h3>去主站</h3>
-              <a href="https://eatplan.online/" target="_blank" rel="noopener noreferrer">
-                发现
-              </a>
-              <a href="https://eatplan.online/market/" target="_blank" rel="noopener noreferrer">
-                市集
-              </a>
-              <a href="https://eatplan.online/guides/" target="_blank" rel="noopener noreferrer">
-                攻略
-              </a>
-              <a href="https://eatplan.online/places/" target="_blank" rel="noopener noreferrer">
-                吃货地图
-              </a>
+            <p className="info-desc">
+              吃货计划目前收录 294 篇百科文章，覆盖菜式、岁时节庆、食材生态与实地地点，全部附公开来源。这座小岛是它的门面，正文仍在主站。
+            </p>
+            <div className="footer-cols">
+              <div className="footer-col">
+                <h3>逛小岛</h3>
+                {sections.map((s) => (
+                  <button
+                    key={s.slug}
+                    onClick={() => {
+                      setInfoOpen(false)
+                      navigate(`/${s.slug}`)
+                    }}
+                  >
+                    {s.navLabel}
+                  </button>
+                ))}
+              </div>
+              <div className="footer-col">
+                <h3>去主站</h3>
+                <a href="https://eatplan.online/" target="_blank" rel="noopener noreferrer">
+                  发现
+                </a>
+                <a href="https://eatplan.online/market/" target="_blank" rel="noopener noreferrer">
+                  市集
+                </a>
+                <a href="https://eatplan.online/guides/" target="_blank" rel="noopener noreferrer">
+                  攻略
+                </a>
+                <a href="https://eatplan.online/magazine/" target="_blank" rel="noopener noreferrer">
+                  百科
+                </a>
+              </div>
+              <div className="footer-col">
+                <h3>关于</h3>
+                <a href="https://eatplan.online/privacy-policy/" target="_blank" rel="noopener noreferrer">
+                  隐私政策
+                </a>
+                <a href="https://eatplan.online/me/" target="_blank" rel="noopener noreferrer">
+                  我的
+                </a>
+              </div>
             </div>
-            <div className="footer-col">
-              <h3>关于</h3>
-              <a
-                href="https://eatplan.online/privacy-policy/"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                隐私政策
-              </a>
-              <a href="https://eatplan.online/me/" target="_blank" rel="noopener noreferrer">
-                我的
-              </a>
-            </div>
+            <p className="footer-copy">© {new Date().getFullYear()} 吃货计划 EAT PLAN · Beta Ver 1.0 · 内容整理自公开来源</p>
           </div>
         </div>
-        <p className="footer-copy">
-          © {new Date().getFullYear()} 吃货计划 EAT PLAN · Beta Ver 1.0 · 内容整理自公开来源
-        </p>
-      </footer>
+      )}
     </div>
   )
 }
