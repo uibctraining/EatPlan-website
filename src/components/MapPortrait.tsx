@@ -3,13 +3,14 @@ import { formatCoord, sections } from '../data/sections'
 import { PATH, PINS, STOPS } from '../map/mapLayout'
 import { FRAME_W, FRAMES, createWalkerSprite } from '../map/sprite'
 
-const MAP_IMAGE = '/manus-storage/async-images/GETtFLV81WaX0AKd4Epwfc/image-1.webp'
+const MAP_IMAGE = '/map-town.webp'
 
-const SCALE = 4 // 精灵图 16px → 显示 64px
+const SCALE = 3 // 精灵图 16px → 显示 48px
 const SPEED = 170 // 小人每秒走多少像素
-const CORRIDOR = 30 // 离石板路多少像素以内才算走在路上
-const TRIGGER = 36 // 距坐标多少像素内触发抽屉
-const RELEASE = 72 // 走出多少像素后允许再次触发
+// 半径按地图显示宽度取比例：路宽变化时走廊与触发范围跟着自适应
+const CORRIDOR_RATIO = 0.05 // 离石板路中心线多宽以内才算走在路上
+const TRIGGER_RATIO = 0.05 // 距坐标多少比例内触发抽屉
+const RELEASE_RATIO = 0.085 // 走出多少比例后允许再次触发
 
 type Props = {
   /** 当前路由坐标（chips 打开时小人也会走过去） */
@@ -49,6 +50,9 @@ export default function MapPortrait({ slug, onArrive }: Props) {
     frameClock: 0,
     moving: false,
     ready: false,
+    corridor: 30,
+    trigger: 36,
+    release: 72,
     pathPx: [] as { x: number; y: number }[],
     len: [] as number[],
   })
@@ -122,7 +126,8 @@ export default function MapPortrait({ slug, onArrive }: Props) {
   /** 自由移动一格，限制在石板路走廊内（贴墙时只走可行的分量） */
   const step = (dx: number, dy: number) => {
     const s = st.current
-    const tryMove = (nx: number, ny: number) => nearestOnPath({ x: nx, y: ny }).d <= CORRIDOR
+    const tryMove = (nx: number, ny: number) =>
+      nearestOnPath({ x: nx, y: ny }).d <= s.corridor
     const { pos } = s
     if (dx !== 0 || dy !== 0) {
       if (Math.abs(dx) > Math.abs(dy)) {
@@ -194,6 +199,9 @@ export default function MapPortrait({ slug, onArrive }: Props) {
     }
 
     const s = st.current
+    s.corridor = Math.max(16, dw * CORRIDOR_RATIO)
+    s.trigger = Math.max(20, dw * TRIGGER_RATIO)
+    s.release = Math.max(34, dw * RELEASE_RATIO)
     const first = !s.ready
     s.pathPx = PATH.map((p) => ({ x: (p.x / 100) * dw, y: (p.y / 100) * dh }))
     const len: number[] = []
@@ -360,10 +368,10 @@ export default function MapPortrait({ slug, onArrive }: Props) {
             hit = key
           }
         }
-        if (hitD <= TRIGGER && s.triggered !== hit) {
+        if (hitD <= s.trigger && s.triggered !== hit) {
           s.triggered = hit
           onArrive(hit)
-        } else if (hitD > RELEASE && s.triggered && hitD > RELEASE) {
+        } else if (hitD > s.release && s.triggered) {
           s.triggered = ''
         }
       }
